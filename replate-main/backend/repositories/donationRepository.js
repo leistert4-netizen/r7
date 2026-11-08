@@ -107,13 +107,11 @@ async function insertDonation(data) {
 
 async function claimDonation(donationId, recipientUserId) {
   const connection = await pool.getConnection();
-  let transactionStarted = false;
 
   try {
     await connection.beginTransaction();
-    transactionStarted = true;
 
-    // Confirm the recipient account exists before locking the offer.
+    // Confirm the recipient account exists.
     const [recipients] = await connection.execute(
       `SELECT u.user_id
        FROM users u
@@ -127,34 +125,13 @@ async function claimDonation(donationId, recipientUserId) {
 
     if (recipients.length === 0) {
       await connection.rollback();
-      transactionStarted = false;
 
       return {
         status: "INVALID_RECIPIENT"
       };
     }
 
-    // Lock the available donation so concurrent claim attempts serialize.
-    // The conditional UPDATE below remains the final state check as well.
-    const [donations] = await connection.execute(
-      `SELECT donation_id
-       FROM donations
-       WHERE donation_id = ?
-         AND status = 'AVAILABLE'
-         AND claim_deadline > NOW()
-       FOR UPDATE`,
-      [donationId]
-    );
-
-    if (donations.length === 0) {
-      await connection.rollback();
-      transactionStarted = false;
-
-      return {
-        status: "UNAVAILABLE"
-      };
-    }
-
+    // Atomically update only an available, unexpired donation.
     const [updateResult] = await connection.execute(
       `UPDATE donations
        SET status = 'CLAIMED',
@@ -167,14 +144,13 @@ async function claimDonation(donationId, recipientUserId) {
 
     if (updateResult.affectedRows !== 1) {
       await connection.rollback();
-      transactionStarted = false;
 
       return {
         status: "UNAVAILABLE"
       };
     }
 
-    // Persist the claim record in the same transaction as the state change.
+    // Record the claim in the same transaction.
     await connection.execute(
       `INSERT INTO claims (
         donation_id,
@@ -186,7 +162,6 @@ async function claimDonation(donationId, recipientUserId) {
     );
 
     await connection.commit();
-    transactionStarted = false;
 
     return {
       status: "SUCCESS",
@@ -195,15 +170,7 @@ async function claimDonation(donationId, recipientUserId) {
     };
 
   } catch (error) {
-    // Preserve the original database error if rollback itself also fails.
-    if (transactionStarted) {
-      try {
-        await connection.rollback();
-      } catch (rollbackError) {
-        console.error("Claim rollback error:", rollbackError);
-      }
-    }
-
+    await connection.rollback();
     throw error;
 
   } finally {
