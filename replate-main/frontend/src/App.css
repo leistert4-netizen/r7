@@ -1,0 +1,220 @@
+
+/* Replate Main Styling */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  width: 100%;
+}
+
+body {
+  background-color: #15171d;
+  color: #ffffff;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Main Page */
+
+.app {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+  text-align: center;
+}
+
+.app header {
+  margin-bottom: 35px;
+}
+
+.app h1 {
+  font-size: 52px;
+  margin: 0 0 12px;
+  color: white;
+}
+
+.app header p {
+  font-size: 18px;
+  color: #aab7c8;
+  margin: 0;
+}
+
+/* Sections */
+
+.app section {
+  width: 100%;
+  max-width: 650px;
+  margin: 0 auto 45px;
+}
+
+.app h2 {
+  font-size: 28px;
+  margin: 0 0 25px;
+  color: white;
+}
+
+/* Donation Form */
+
+.app form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.app form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  color: #c4cedc;
+  font-size: 16px;
+}
+
+/* Form Inputs */
+
+.app input,
+.app select,
+.app textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 12px 14px;
+  background-color: #292d37;
+  border: 1px solid #535c6c;
+  border-radius: 8px;
+  color: white;
+  font-family: inherit;
+  font-size: 16px;
+}
+
+.app input:focus,
+.app select:focus,
+.app textarea:focus {
+  outline: 2px solid #60a5fa;
+  border-color: #60a5fa;
+}
+
+.app textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* Buttons */
+
+.app button {
+  width: 100%;
+  padding: 13px 20px;
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app button:hover {
+  background-color: #1d4ed8;
+}
+
+.app button:disabled {
+  background-color: #64748b;
+  cursor: not-allowed;
+}
+
+/* Donation Listings */
+
+.app .donations-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  margin-top: 25px;
+}
+
+.app .donation-card {
+  background-color: #232733;
+  border: 1px solid #414957;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: left;
+}
+
+.app .donation-card h3 {
+  margin: 0 0 12px;
+  font-size: 22px;
+}
+
+.app .donation-card p {
+  color: #c4cedc;
+  line-height: 1.5;
+  margin: 8px 0;
+}
+
+.app .donation-card button {
+  margin-top: 15px;
+}
+
+/* Recipient ID */
+
+.app section > label {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto 20px;
+  text-align: left;
+  color: #c4cedc;
+}
+
+/* Success and Error Messages */
+
+.app [role="status"] {
+  color: #4ade80;
+  font-weight: bold;
+  margin: 20px auto;
+}
+
+.app [role="alert"] {
+  color: #f87171;
+  font-weight: bold;
+  margin: 20px auto;
+}
+
+/* Mobile Layout */
+
+@media (max-width: 600px) {
+  .app {
+    padding: 25px 16px 60px;
+  }
+
+  .app h1 {
+    font-size: 40px;
+  }
+
+  .app h2 {
+    font-size: 24px;
+  }
+
+  .app form {
+    max-width: 100%;
+  }
+
+  .app .donation-card {
+    padding: 18px;
+  }
+}
