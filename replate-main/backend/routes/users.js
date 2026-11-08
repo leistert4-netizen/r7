@@ -1,4 +1,3 @@
-
 const express = require("express");
 const bcrypt = require("bcrypt");
 const pool = require("../config/db");
@@ -15,7 +14,6 @@ router.post("/register", async (req, res) => {
     password
   } = req.body || {};
 
-  // Validate required fields
   if (
     typeof organization_name !== "string" ||
     !organization_name.trim() ||
@@ -31,7 +29,6 @@ router.post("/register", async (req, res) => {
     });
   }
 
-  // Validate organization type
   if (
     organization_type !== "FOODSERVICE" &&
     organization_type !== "RECIPIENT"
@@ -42,7 +39,6 @@ router.post("/register", async (req, res) => {
     });
   }
 
-  // Basic email validation
   const normalizedEmail = email.trim().toLowerCase();
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
@@ -58,13 +54,14 @@ router.post("/register", async (req, res) => {
   }
 
   let connection;
+  let transactionStarted = false;
 
   try {
     connection = await pool.getConnection();
 
     await connection.beginTransaction();
+    transactionStarted = true;
 
-    // Check for duplicate email
     const [existingUsers] = await connection.execute(
       "SELECT user_id FROM users WHERE email = ?",
       [normalizedEmail]
@@ -72,16 +69,15 @@ router.post("/register", async (req, res) => {
 
     if (existingUsers.length > 0) {
       await connection.rollback();
+      transactionStarted = false;
 
       return res.status(400).json({
         error: "Email is already in use."
       });
     }
 
-    // Hash password before storage
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Create organization
     const [organizationResult] = await connection.execute(
       `INSERT INTO organizations
         (organization_name, organization_type, address)
@@ -94,27 +90,19 @@ router.post("/register", async (req, res) => {
     );
 
     const organizationId = organizationResult.insertId;
+    const role = organization_type === "FOODSERVICE"
+      ? "FOOD_DONOR"
+      : "RECIPIENT";
 
-    // Determine role
-    const role =
-      organization_type === "FOODSERVICE"
-        ? "FOOD_DONOR"
-        : "RECIPIENT";
-
-    // Create user
     const [userResult] = await connection.execute(
       `INSERT INTO users
         (organization_id, email, password_hash, role)
        VALUES (?, ?, ?, ?)`,
-      [
-        organizationId,
-        normalizedEmail,
-        passwordHash,
-        role
-      ]
+      [organizationId, normalizedEmail, passwordHash, role]
     );
 
     await connection.commit();
+    transactionStarted = false;
 
     return res.status(201).json({
       message: "User registered successfully.",
@@ -124,11 +112,14 @@ router.post("/register", async (req, res) => {
     });
 
   } catch (error) {
-    if (connection) {
-      await connection.rollback();
+    if (connection && transactionStarted) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error("Registration rollback error:", rollbackError);
+      }
     }
 
-    // Handle duplicate email race conditions
     if (error.code === "ER_DUP_ENTRY") {
       return res.status(400).json({
         error: "Email is already in use."
