@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import "./App.css";
 
@@ -99,7 +98,6 @@ function formatDateTimeLocal(value) {
   if (!value) return "";
 
   if (typeof value === "string") {
-    // MySQL DATETIME or ISO timestamp
     return value.replace(" ", "T").slice(0, 16);
   }
 
@@ -111,36 +109,21 @@ function formatDateTimeLocal(value) {
 // ============================================================
 
 function App() {
-  // Donation posting
-  const [form, setForm] = useState({
-    ...emptyDonation
-  });
-
-  // Registration
-  const [registration, setRegistration] = useState({
-    ...emptyRegistration
-  });
-
+  const [form, setForm] = useState({ ...emptyDonation });
+  const [registration, setRegistration] = useState({ ...emptyRegistration });
   const [registering, setRegistering] = useState(false);
 
-  // Donation listing and claiming
   const [donations, setDonations] = useState([]);
-  const [recipientUserId, setRecipientUserId] =
-    useState("");
+  const [recipientUserId, setRecipientUserId] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [claimingId, setClaimingId] = useState(null);
-  const [loadingDonations, setLoadingDonations] =
-    useState(true);
+  const [loadingDonations, setLoadingDonations] = useState(true);
 
-  // Donation editing
   const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({
-    ...emptyDonation
-  });
+  const [editForm, setEditForm] = useState({ ...emptyDonation });
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // Messages
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -148,10 +131,6 @@ function App() {
     setMessage("");
     setError("");
   }
-
-  // ==========================================================
-  // LOAD AVAILABLE DONATIONS
-  // ==========================================================
 
   async function loadDonations() {
     setLoadingDonations(true);
@@ -161,9 +140,7 @@ function App() {
       const data = await readResponse(response);
 
       if (!Array.isArray(data)) {
-        throw new Error(
-          "Invalid donation list received."
-        );
+        throw new Error("Invalid donation list received.");
       }
 
       setDonations(data);
@@ -181,10 +158,6 @@ function App() {
   useEffect(() => {
     loadDonations();
   }, []);
-
-  // ==========================================================
-  // REGISTRATION
-  // ==========================================================
 
   function handleRegistrationChange(event) {
     const { name, value } = event.target;
@@ -206,14 +179,10 @@ function App() {
     try {
       const response = await fetch(REGISTER_API, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          organization_name:
-            registration.organization_name.trim(),
-          organization_type:
-            registration.organization_type,
+          organization_name: registration.organization_name.trim(),
+          organization_type: registration.organization_type,
           address: registration.address.trim(),
           email: registration.email.trim(),
           password: registration.password
@@ -222,10 +191,15 @@ function App() {
 
       const data = await readResponse(response);
 
-      setMessage(
-        data.message ||
-        "User registered successfully."
-      );
+      // Newly registered recipients can immediately use the claim workflow.
+      if (data.role === "RECIPIENT" && data.user_id) {
+        setRecipientUserId(String(data.user_id));
+        setMessage(
+          `${data.message || "User registered successfully."} Recipient ID ${data.user_id} is ready to use for claiming.`
+        );
+      } else {
+        setMessage(data.message || "User registered successfully.");
+      }
 
       setRegistration({ ...emptyRegistration });
 
@@ -236,10 +210,6 @@ function App() {
       setRegistering(false);
     }
   }
-
-  // ==========================================================
-  // POST DONATION
-  // ==========================================================
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -261,21 +231,14 @@ function App() {
     try {
       const response = await fetch(DONATIONS_API, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)
       });
 
       const data = await readResponse(response);
 
       setForm({ ...emptyDonation });
-
-      setMessage(
-        data.message ||
-        "Donation posted successfully."
-      );
-
+      setMessage(data.message || "Donation posted successfully.");
       await loadDonations();
 
     } catch (err) {
@@ -285,10 +248,6 @@ function App() {
       setLoading(false);
     }
   }
-
-  // ==========================================================
-  // CLAIM DONATION
-  // ==========================================================
 
   async function handleClaim(donationId) {
     if (claimingId !== null) return;
@@ -308,35 +267,21 @@ function App() {
       !Number.isSafeInteger(recipientId) ||
       recipientId <= 0
     ) {
-      setError(
-        "Please enter a valid recipient user ID."
-      );
+      setError("Please register a recipient or enter a valid recipient user ID.");
       return;
     }
 
     setClaimingId(id);
 
     try {
-      const response = await fetch(
-        `${DONATIONS_API}/${id}/claim`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            recipient_user_id: recipientId
-          })
-        }
-      );
+      const response = await fetch(`${DONATIONS_API}/${id}/claim`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipient_user_id: recipientId })
+      });
 
       const data = await readResponse(response);
-
-      setMessage(
-        data.message ||
-        "Donation claimed successfully."
-      );
-
+      setMessage(data.message || "Donation claimed successfully.");
       await loadDonations();
 
     } catch (err) {
@@ -347,15 +292,9 @@ function App() {
     }
   }
 
-  // ==========================================================
-  // EDIT DONATION
-  // ==========================================================
-
   function startEditing(donation) {
     clearMessages();
-
     setEditingId(donation.donation_id);
-
     setEditForm({
       food_type: donation.food_type || "",
       quantity: String(donation.quantity ?? ""),
@@ -363,11 +302,8 @@ function App() {
       pickup_address: donation.pickup_address || "",
       pickup_date: formatDate(donation.pickup_date),
       pickup_time: formatTime(donation.pickup_time),
-      claim_deadline: formatDateTimeLocal(
-        donation.claim_deadline
-      ),
-      additional_information:
-        donation.additional_information || ""
+      claim_deadline: formatDateTimeLocal(donation.claim_deadline),
+      additional_information: donation.additional_information || ""
     });
   }
 
@@ -394,26 +330,15 @@ function App() {
     setSavingEdit(true);
 
     try {
-      const response = await fetch(
-        `${DONATIONS_API}/${editingId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(editForm)
-        }
-      );
+      const response = await fetch(`${DONATIONS_API}/${editingId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm)
+      });
 
       const data = await readResponse(response);
-
       cancelEditing();
-
-      setMessage(
-        data.message ||
-        "Donation updated successfully."
-      );
-
+      setMessage(data.message || "Donation updated successfully.");
       await loadDonations();
 
     } catch (err) {
@@ -424,269 +349,112 @@ function App() {
     }
   }
 
-  // ==========================================================
-  // USER INTERFACE
-  // ==========================================================
-
   return (
     <main className="app">
       <header>
         <h1>Replate</h1>
-        <p>
-          Food Surplus Donation Management System
-        </p>
+        <p>Food Surplus Donation Management System</p>
       </header>
-
-      {/* ================================================
-          ACCOUNT REGISTRATION
-      ================================================= */}
 
       <section>
         <h2>Register an Account</h2>
-
-        <p>
-          Register a foodservice business or recipient
-          organization.
-        </p>
+        <p>Register a foodservice business or recipient organization.</p>
 
         <form onSubmit={handleRegistration}>
           <label>
             Organization Name
-            <input
-              type="text"
-              name="organization_name"
-              value={registration.organization_name}
-              onChange={handleRegistrationChange}
-              required
-            />
+            <input type="text" name="organization_name" value={registration.organization_name} onChange={handleRegistrationChange} required />
           </label>
-
           <label>
             Organization Type
-            <select
-              name="organization_type"
-              value={registration.organization_type}
-              onChange={handleRegistrationChange}
-              required
-            >
-              <option value="">
-                Select organization type
-              </option>
-              <option value="FOODSERVICE">
-                Foodservice Donor
-              </option>
-              <option value="RECIPIENT">
-                Food Assistance Recipient
-              </option>
+            <select name="organization_type" value={registration.organization_type} onChange={handleRegistrationChange} required>
+              <option value="">Select organization type</option>
+              <option value="FOODSERVICE">Foodservice Donor</option>
+              <option value="RECIPIENT">Food Assistance Recipient</option>
             </select>
           </label>
-
           <label>
             Organization Address
-            <input
-              type="text"
-              name="address"
-              value={registration.address}
-              onChange={handleRegistrationChange}
-              required
-            />
+            <input type="text" name="address" value={registration.address} onChange={handleRegistrationChange} required />
           </label>
-
           <label>
             Email Address
-            <input
-              type="email"
-              name="email"
-              value={registration.email}
-              onChange={handleRegistrationChange}
-              required
-            />
+            <input type="email" name="email" value={registration.email} onChange={handleRegistrationChange} required />
           </label>
-
           <label>
             Password
-            <input
-              type="password"
-              name="password"
-              value={registration.password}
-              onChange={handleRegistrationChange}
-              autoComplete="new-password"
-              minLength={8}
-              required
-            />
+            <input type="password" name="password" value={registration.password} onChange={handleRegistrationChange} autoComplete="new-password" minLength={8} required />
           </label>
-
-          <button
-            type="submit"
-            disabled={registering}
-          >
-            {registering
-              ? "Registering..."
-              : "Create Account"}
+          <button type="submit" disabled={registering}>
+            {registering ? "Registering..." : "Create Account"}
           </button>
         </form>
-
-        <p>
-          Registration creates an account but does not
-          automatically log you in.
-        </p>
+        <p>Registration creates an account but does not automatically log you in.</p>
       </section>
-
-      {/* ================================================
-          POST A DONATION
-      ================================================= */}
 
       <section>
         <h2>Post a Donation</h2>
-
         <form onSubmit={handleSubmit}>
           <label>
             Food Type
-            <select
-              name="food_type"
-              value={form.food_type}
-              onChange={handleChange}
-              required
-            >
-              <option value="">
-                Select food type
-              </option>
-              <option value="Prepared Meals">
-                Prepared Meals
-              </option>
-              <option value="Bakery Items">
-                Bakery Items
-              </option>
-              <option value="Fresh Produce">
-                Fresh Produce
-              </option>
-              <option value="Packaged Food">
-                Packaged Food
-              </option>
+            <select name="food_type" value={form.food_type} onChange={handleChange} required>
+              <option value="">Select food type</option>
+              <option value="Prepared Meals">Prepared Meals</option>
+              <option value="Bakery Items">Bakery Items</option>
+              <option value="Fresh Produce">Fresh Produce</option>
+              <option value="Packaged Food">Packaged Food</option>
             </select>
           </label>
-
           <label>
             Quantity
-            <input
-              type="number"
-              name="quantity"
-              value={form.quantity}
-              onChange={handleChange}
-              min="0.01"
-              step="0.01"
-              required
-            />
+            <input type="number" name="quantity" value={form.quantity} onChange={handleChange} min="0.01" step="0.01" required />
           </label>
-
           <label>
             Unit
-            <select
-              name="quantity_unit"
-              value={form.quantity_unit}
-              onChange={handleChange}
-              required
-            >
-              <option value="">
-                Select unit
-              </option>
-              <option value="servings">
-                Servings
-              </option>
-              <option value="lbs">
-                Pounds
-              </option>
-              <option value="boxes">
-                Boxes
-              </option>
-              <option value="items">
-                Items
-              </option>
+            <select name="quantity_unit" value={form.quantity_unit} onChange={handleChange} required>
+              <option value="">Select unit</option>
+              <option value="servings">Servings</option>
+              <option value="lbs">Pounds</option>
+              <option value="boxes">Boxes</option>
+              <option value="items">Items</option>
             </select>
           </label>
-
           <label>
             Pickup Address
-            <input
-              type="text"
-              name="pickup_address"
-              value={form.pickup_address}
-              onChange={handleChange}
-              required
-            />
+            <input type="text" name="pickup_address" value={form.pickup_address} onChange={handleChange} required />
           </label>
-
           <label>
             Pickup Date
-            <input
-              type="date"
-              name="pickup_date"
-              value={form.pickup_date}
-              onChange={handleChange}
-              required
-            />
+            <input type="date" name="pickup_date" value={form.pickup_date} onChange={handleChange} required />
           </label>
-
           <label>
             Pickup Time
-            <input
-              type="time"
-              name="pickup_time"
-              value={form.pickup_time}
-              onChange={handleChange}
-              required
-            />
+            <input type="time" name="pickup_time" value={form.pickup_time} onChange={handleChange} required />
           </label>
-
           <label>
             Claim Deadline
-            <input
-              type="datetime-local"
-              name="claim_deadline"
-              value={form.claim_deadline}
-              onChange={handleChange}
-              required
-            />
+            <input type="datetime-local" name="claim_deadline" value={form.claim_deadline} onChange={handleChange} required />
           </label>
-
           <label>
             Additional Information
-            <textarea
-              name="additional_information"
-              value={form.additional_information}
-              onChange={handleChange}
-              rows={3}
-            />
+            <textarea name="additional_information" value={form.additional_information} onChange={handleChange} rows={3} />
           </label>
-
-          <button
-            type="submit"
-            disabled={loading}
-          >
-            {loading
-              ? "Posting..."
-              : "Post Donation"}
+          <button type="submit" disabled={loading}>
+            {loading ? "Posting..." : "Post Donation"}
           </button>
         </form>
       </section>
 
-      {/* ================================================
-          AVAILABLE DONATIONS
-      ================================================= */}
-
       <section>
         <h2>Available Donations</h2>
-
         <label>
-          Demo Recipient User ID
+          Recipient User ID
           <input
             type="number"
             min="1"
             value={recipientUserId}
-            onChange={event =>
-              setRecipientUserId(event.target.value)
-            }
-            placeholder="Enter recipient user ID"
+            onChange={event => setRecipientUserId(event.target.value)}
+            placeholder="Register a recipient or enter user ID"
           />
         </label>
 
@@ -698,52 +466,20 @@ function App() {
               <p>No donations available.</p>
             ) : (
               donations.map(donation => (
-                <article
-                  key={donation.donation_id}
-                  className="donation-card"
-                >
+                <article key={donation.donation_id} className="donation-card">
                   <h3>{donation.food_type}</h3>
-
-                  <p>
-                    <strong>Donor:</strong>{" "}
-                    {donation.organization_name}
-                  </p>
-
-                  <p>
-                    <strong>Quantity:</strong>{" "}
-                    {donation.quantity}{" "}
-                    {donation.quantity_unit}
-                  </p>
-
-                  <p>
-                    <strong>Pickup:</strong>{" "}
-                    {donation.pickup_address}
-                  </p>
-
-                  <p>
-                    <strong>Status:</strong>{" "}
-                    {donation.status}
-                  </p>
-
+                  <p><strong>Donor:</strong> {donation.organization_name}</p>
+                  <p><strong>Quantity:</strong> {donation.quantity} {donation.quantity_unit}</p>
+                  <p><strong>Pickup:</strong> {donation.pickup_address}</p>
+                  <p><strong>Status:</strong> {donation.status}</p>
                   <button
                     type="button"
                     disabled={claimingId !== null}
-                    onClick={() =>
-                      handleClaim(donation.donation_id)
-                    }
+                    onClick={() => handleClaim(donation.donation_id)}
                   >
-                    {claimingId ===
-                    donation.donation_id
-                      ? "Claiming..."
-                      : "Claim Donation"}
+                    {claimingId === donation.donation_id ? "Claiming..." : "Claim Donation"}
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      startEditing(donation)
-                    }
-                  >
+                  <button type="button" onClick={() => startEditing(donation)}>
                     Edit Donation (Demo)
                   </button>
                 </article>
@@ -753,166 +489,65 @@ function App() {
         )}
       </section>
 
-      {/* ================================================
-          EDIT DONATION
-      ================================================= */}
-
       {editingId !== null && (
         <section>
           <h2>Edit Donation #{editingId}</h2>
-
-          <p>
-            Demo editing only. Donor ownership
-            verification is not implemented.
-          </p>
-
+          <p>Demo editing only. Donor ownership verification is not implemented.</p>
           <form onSubmit={handleSaveEdit}>
             <label>
               Food Type
-              <select
-                name="food_type"
-                value={editForm.food_type}
-                onChange={handleEditChange}
-                required
-              >
-                <option value="Prepared Meals">
-                  Prepared Meals
-                </option>
-                <option value="Bakery Items">
-                  Bakery Items
-                </option>
-                <option value="Fresh Produce">
-                  Fresh Produce
-                </option>
-                <option value="Packaged Food">
-                  Packaged Food
-                </option>
+              <select name="food_type" value={editForm.food_type} onChange={handleEditChange} required>
+                <option value="Prepared Meals">Prepared Meals</option>
+                <option value="Bakery Items">Bakery Items</option>
+                <option value="Fresh Produce">Fresh Produce</option>
+                <option value="Packaged Food">Packaged Food</option>
               </select>
             </label>
-
             <label>
               Quantity
-              <input
-                type="number"
-                name="quantity"
-                value={editForm.quantity}
-                onChange={handleEditChange}
-                min="0.01"
-                step="0.01"
-                required
-              />
+              <input type="number" name="quantity" value={editForm.quantity} onChange={handleEditChange} min="0.01" step="0.01" required />
             </label>
-
             <label>
               Unit
-              <select
-                name="quantity_unit"
-                value={editForm.quantity_unit}
-                onChange={handleEditChange}
-                required
-              >
-                <option value="servings">
-                  Servings
-                </option>
-                <option value="lbs">
-                  Pounds
-                </option>
-                <option value="boxes">
-                  Boxes
-                </option>
-                <option value="items">
-                  Items
-                </option>
+              <select name="quantity_unit" value={editForm.quantity_unit} onChange={handleEditChange} required>
+                <option value="servings">Servings</option>
+                <option value="lbs">Pounds</option>
+                <option value="boxes">Boxes</option>
+                <option value="items">Items</option>
               </select>
             </label>
-
             <label>
               Pickup Address
-              <input
-                type="text"
-                name="pickup_address"
-                value={editForm.pickup_address}
-                onChange={handleEditChange}
-                required
-              />
+              <input type="text" name="pickup_address" value={editForm.pickup_address} onChange={handleEditChange} required />
             </label>
-
             <label>
               Pickup Date
-              <input
-                type="date"
-                name="pickup_date"
-                value={editForm.pickup_date}
-                onChange={handleEditChange}
-                required
-              />
+              <input type="date" name="pickup_date" value={editForm.pickup_date} onChange={handleEditChange} required />
             </label>
-
             <label>
               Pickup Time
-              <input
-                type="time"
-                name="pickup_time"
-                value={editForm.pickup_time}
-                onChange={handleEditChange}
-                required
-              />
+              <input type="time" name="pickup_time" value={editForm.pickup_time} onChange={handleEditChange} required />
             </label>
-
             <label>
               Claim Deadline
-              <input
-                type="datetime-local"
-                name="claim_deadline"
-                value={editForm.claim_deadline}
-                onChange={handleEditChange}
-                required
-              />
+              <input type="datetime-local" name="claim_deadline" value={editForm.claim_deadline} onChange={handleEditChange} required />
             </label>
-
             <label>
               Additional Information
-              <textarea
-                name="additional_information"
-                value={
-                  editForm.additional_information
-                }
-                onChange={handleEditChange}
-                rows={3}
-              />
+              <textarea name="additional_information" value={editForm.additional_information} onChange={handleEditChange} rows={3} />
             </label>
-
-            <button
-              type="submit"
-              disabled={savingEdit}
-            >
-              {savingEdit
-                ? "Saving..."
-                : "Save Changes"}
+            <button type="submit" disabled={savingEdit}>
+              {savingEdit ? "Saving..." : "Save Changes"}
             </button>
-
-            <button
-              type="button"
-              onClick={cancelEditing}
-              disabled={savingEdit}
-            >
+            <button type="button" onClick={cancelEditing} disabled={savingEdit}>
               Cancel Editing
             </button>
           </form>
         </section>
       )}
 
-      {/* ================================================
-          STATUS MESSAGES
-      ================================================= */}
-
-      {message && (
-        <p role="status">{message}</p>
-      )}
-
-      {error && (
-        <p role="alert">Error: {error}</p>
-      )}
+      {message && <p role="status">{message}</p>}
+      {error && <p role="alert">Error: {error}</p>}
     </main>
   );
 }
